@@ -22,6 +22,7 @@ from django.http import HttpResponseRedirect, HttpResponse, Http404, HttpRespons
 from django.shortcuts import render_to_response, get_object_or_404
 from django.template.context import RequestContext
 from django.template.defaultfilters import escape
+from django.utils.timezone import now
 from django.utils.translation import ugettext_lazy as _, get_language
 from django.utils.decorators import method_decorator
 from django.views.decorators.http import require_POST
@@ -1106,11 +1107,16 @@ class PageAdmin(PlaceholderAdminMixin, ModelAdmin):
                         path = page.get_absolute_url(language, fallback=True)
                     else:
                         public_page = Page.objects.get(publisher_public=page.pk)
-                        path = '%s?%s' % (public_page.get_absolute_url(language, fallback=True), get_cms_setting('CMS_TOOLBAR_URL__EDIT_OFF'))
+                        path = public_page.get_absolute_url(language, fallback=True)
                 else:
-                    path = '%s?%s' % (referrer, get_cms_setting('CMS_TOOLBAR_URL__EDIT_OFF'))
+                    path = referrer
             else:
-                path = '/?%s' % get_cms_setting('CMS_TOOLBAR_URL__EDIT_OFF')
+                path = '/'
+
+            if page.publication_date <= now():  # don't send them back with edit off if the publication date is in the future - it will 404
+                path = '%s?%s' % (path, get_cms_setting('CMS_TOOLBAR_URL__EDIT_OFF'))
+            else:
+                messages.info(request, _(" Since this page has a publication date in the future, you were not redirected to its public view since it would 404."))
 
         return HttpResponseRedirect(path)
 
